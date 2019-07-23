@@ -59,10 +59,10 @@
       var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.6);
       scene.add(light);
 
-      var geometry = new THREE.PlaneGeometry(1000, 1000);
+      var geometry = new THREE.SphereGeometry(10, 10, 10);
 
-      var mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial());
-      mesh.rotation.x = -Math.PI / 2;
+      var mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({color: red}));
+      // mesh.rotation.x = -Math.PI / 2;
       scene.add(mesh);
 
       window.addEventListener('resize', resize, false);
