@@ -46,22 +46,22 @@
 
       scene = new THREE.Scene();
 
-      camera = new THREE.PerspectiveCamera(90, 1, 0.001, 700);
-      camera.position.set(0, 10, 0);
+     camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 100000 );
+			camera.position.z = 3200;
       scene.add(camera);
       
       controls = new THREE.DeviceOrientationControls(camera, true);
       controls.connect();
       controls.update();
 
-      element.addEventListener('click', fullscreen, false);
+      // element.addEventListener('click', fullscreen, false);
 
-      var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.6);
-      scene.add(light);
+      // var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.6);
+      // scene.add(light);
 
-      var geometry = new THREE.SphereGeometry(10, 10, 10);
+      var geometry = new THREE.SphereBufferGeometry( 100, 32, 16 );
 
-      var mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({color: red}));
+      var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({color: 0xFF0000}));
       // mesh.rotation.x = -Math.PI / 2;
       scene.add(mesh);
 
