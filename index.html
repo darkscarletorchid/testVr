@@ -196,23 +196,23 @@
       effect.setSize(width, height);
     }
 
-    function update(dt) {
+    function update() {
       resize();
 
       camera.updateProjectionMatrix();
 
-      controls.update(dt);
+      controls.update();
     }
 
-    function render(dt) {
+    function render() {
       effect.render(scene, camera);
     }
 
     function animate(t) {
       requestAnimationFrame(animate);
 
-      update(clock.getDelta());
-      render(clock.getDelta());
+      update();
+      render();
     }
 
     function fullscreen() {
