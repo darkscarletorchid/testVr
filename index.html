@@ -24,6 +24,10 @@
   <script src="vendor/three.js"></script>
   <script src="vendor/StereoEffect.js"></script>
   <script src="vendor/DeviceOrientationControls.js"></script>
+  <script src="vendor/CTMLoader.js"></script>
+  <script src="vendor/S3DLoader.js"></script>
+  <script src="vendor/DRACOLoader.js"></script>
+
   <!-- <script src="vendor/OrbitControls.js"></script> -->
 
   <script>
@@ -33,10 +37,121 @@
 
     var clock = new THREE.Clock();
 
+// openViewerPlanning();
     init();
     animate();
 
-    function init() {
+
+    // XPlanner Binary response parser
+    function processXPlannerBinaryResponse(result, success) {
+        //console.time("Response parsing");
+        // Process binary data:
+        var byteOffset = 0; // Setting pointer to the json size beginning.
+        var minLength = 4; // First 4 bytes are storing uint32 value of json size...
+        if (result.byteLength < minLength) {
+            // ...if they are absent - response is invalid.
+            fail("Invalid response length");
+            return;
+        }
+        // Constructing DataView object for easier multibyte data types extraction.
+        var dataView = new DataView(result);
+
+        // Get JSON data length
+        var jsonSize = dataView.getUint32(byteOffset, true); // Extracting first 4 bytes (unit32, little endian) - size of json data bytes
+        if (jsonSize === 0) {
+            // ...if size of json is 0 - no json data present.
+            fail("Invalid response data");
+            return;
+        }
+
+        byteOffset = minLength; // Moving pointer to the json data beginning
+        minLength += jsonSize; // Now we are expecting our response data is also including json data bytes
+        if (result.byteLength < minLength) {
+            // ...if they are absent - response is invalid
+            fail("Invalid response length");
+            return;
+        }
+
+        // Process JSON data
+        var jsonBytes = new Uint8Array(result, byteOffset, jsonSize); // Extracting json bytes
+
+        // Process Mesh data (multiple)
+        var meshArray = [];
+        do {
+            byteOffset = minLength; // Moving pointer to the mesh size beginning
+            minLength += 4; // Now we are expecting our response data is also including mesh size bytes (4 bytes)
+            if (result.byteLength < minLength) // No more mesh data?
+            {
+                break;
+            }
+
+            var meshSize = dataView.getUint32(byteOffset, true); // Extracting next 4 bytes (unit32, little endian) - size of mesh data bytes
+            // ...it is OK if size of json is 0 (no mesh data present)
+            byteOffset = minLength; // Moving pointer to the mesh data beginning
+            minLength += meshSize; // Now we are expecting our response data is also including mesh data bytes
+
+            if (result.byteLength < minLength) {
+                // ...if they are absent - response is invalid
+                fail("Invalid response length");
+                return;
+            }
+
+            // Process mesh data
+            var meshBytes = new Uint8Array(result, byteOffset, meshSize); // Extracting mesh bytes
+            meshArray.push(meshBytes); // Storing extracted mesh
+        } while (true);
+        //console.timeEnd("Response parsing");
+
+
+        //console.time("JSON reconstruction");
+        var jsonStr = decodeURIComponent(escape(String.fromCharCode.apply(null, jsonBytes))); // Converting UTF8 encoded json bytes to unicode string
+        var jsonObj = JSON.parse(jsonStr); // Parse json string to json object
+        //console.timeEnd("JSON reconstruction");
+
+        //console.time("Compressed meshes reconstruction");
+        success(jsonObj, meshArray);
+        //console.timeEnd("Compressed meshes reconstruction");
+    }
+
+    function instantiateMeshLoader(meshEncoderDescriptor) {
+        if (meshEncoderDescriptor === "S3D") {
+            return new THREE.S3DLoader();
+        }
+        if (meshEncoderDescriptor === "CTM") {
+            return new THREE.CTMLoader();
+        }
+        if (meshEncoderDescriptor === "DRC") {
+            return THREE.DRACOLoader.createInstanceSafe();
+        }
+        throw new Error("commonModules.utils.instantiateMeshLoader: Unknown mesh encoder");
+    }
+
+    function openViewerPlanning(apiLink) {
+      var xhttp = new XMLHttpRequest();
+      debugger
+      xhttp.open("GET", "http://localhost:18600/api/viewer/scene/85/c88053e3-d538-454c-9438-a1c7e7fe4d22/953a0a5c-9409-4c29-ba61-82f432967851/e6d357de-d39e-4aee-968e-070bc4260985", true);
+      xhttp.responseType = "arraybuffer";
+
+      xhttp.onload = function(oEvent) {
+        processXPlannerBinaryResponse(oEvent.response,     init);
+      };
+
+      xhttp.send();
+        // var promise = $.ajax(
+        // {
+        //     url: apiLink,
+        //     type: "GET",
+        //     dataType: "binary",
+        //     processData: false,
+        //     timeout: defaultTimeout
+        // });
+
+        // promise.fail(onFail);
+
+        // return promise;
+    }
+
+    function init(jsonObj, meshArray) {
       renderer = new THREE.WebGLRenderer();
       element = renderer.domElement;
       container = document.getElementById('example');
@@ -46,15 +161,15 @@
 
       scene = new THREE.Scene();
 
-     camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 100000 );
+      camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 100000 );
 			camera.position.z = 3200;
       scene.add(camera);
-      
+
       controls = new THREE.DeviceOrientationControls(camera, true);
       controls.connect();
       controls.update();
 
-      // element.addEventListener('click', fullscreen, false);
+      element.addEventListener('click', fullscreen, false);
 
       // var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.6);
       // scene.add(light);
@@ -67,6 +182,7 @@
 
       window.addEventListener('resize', resize, false);
       setTimeout(resize, 1);
+      animate();
     }
 
     function resize() {
